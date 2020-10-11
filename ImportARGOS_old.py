@@ -7,35 +7,27 @@
 ## Usage: ImportArgos <ARGOS folder> <Output feature class> 
 ##
 ## Created: Fall 2020
-## Author: taylor.stoni@duke.edu 
+## Author: taylor.stoni@duke.edu (for ENV859)
 ##---------------------------------------------------------------------
 
 # Import modules
 import sys, os, arcpy
 
-#Allow arcpy to overwrite outputs 
-arcpy.env.overwriteOutput = True
-
 # Set input variables (Hard-wired)
 inputFile = 'V:\\ARGOSTracking\\Data\\ARGOSData\\1997dg.txt'
 outputFC = "V:/ARGOSTracking/Scratch/ARGOStrack.shp"
 
-#Create an empty feautre class to which we will add features
-outPath, outName = os.path.split(outputFC) #splits output path and output file name
-arcpy.CreateFeatureclass_management(outPath, outName, "POINT")
+#%% Construct a while loop to iterate through all lines in the data file 
+#Open the ARGOS data file for reading 
+inputfileObj = open(inputFile, 'r')
 
+#Get the first line of data, so we can use the while loop
+lineString = inputfileObj.readline()
 
-#%% Construct a while loop to iterate through all lines in the datafile
-# Open the ARGOS data file for reading
-inputFileObj = open(inputFile,'r')
-
-# Get the first line of data, so we can use the while loop
-lineString = inputFileObj.readline()
-
-#Start the while loop
-while lineString: 
+#Start the while loop 
+while lineString:
     
-    # Set code to run only if the line contains the string "Date: "
+    #Set code to run only if the line contains the string "Date: "
     if ("Date :" in lineString):
         
         # Parse the line into a list
@@ -43,12 +35,9 @@ while lineString:
         
         # Extract attributes from the datum header line
         tagID = lineData[0]
-        obsDate= lineData[3]
-        obsTime = lineData[4]
-        obsLC = lineData[7]
         
         # Extract location info from the next line
-        line2String = inputFileObj.readline()
+        line2String = inputfileObj.readline()
         
         # Parse the line into a list
         line2Data = line2String.split()
@@ -58,10 +47,10 @@ while lineString:
         obsLon= line2Data[5]
         
         # Print results to see how we're doing
-        print (tagID,obsDate,obsTime,obsLC,"Lat:"+obsLat,"Long:"+obsLon)
+        print (tagID,"Lat:"+obsLat,"Long:"+obsLon)
         
     # Move to the next line so the while loop progresses
-    lineString = inputFileObj.readline()
+    lineString = inputfileObj.readline()
     
 #Close the file object
-inputFileObj.close()
+inputfileObj.close()
