@@ -75,7 +75,7 @@ while lineString:
             else:
                 obsLon = float(obsLon[:-1] * -1)
                
-            # Construct a point object from the feature class
+            # Construct a raw point object from the feature class
             obsPoint = arcpy.Point()
             obsPoint.X = obsLon
             obsPoint.Y = obsLat
@@ -84,8 +84,12 @@ while lineString:
         except Exception as e:
             print("Error adding record {} to the output".format(tagID))
         
+        # Convert the point to a point geometry object with spatial reference
+        inputSR = arcpy.SpatialReference(4326)
+        obsPointGeom = arcpy.PointGeometry(obsPoint,inputSR)
+        
         #Add a feature using our insert cursor
-        feature = cur.insertRow((obsPoint,tagID,obsLC,obsDate.replace(".","/") + " " + obsTime))
+        feature = cur.insertRow((obsPointGeom,tagID,obsLC,obsDate.replace(".","/") + " " + obsTime))
         
     # Move to the next line so the while loop progresses
     lineString = inputFileObj.readline()
