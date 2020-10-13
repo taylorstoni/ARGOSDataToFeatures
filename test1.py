@@ -1,53 +1,48 @@
-##---------------------------------------------------------------------
-## ImportARGOS.py
-##
-## Description: Read in ARGOS formatted tracking data and create a line
-##    feature class from the [filtered] tracking points
-##
-## Usage: ImportArgos <ARGOS folder> <Output feature class> 
-##
-## Created: Fall 2020
-## Author: taylor.stoni@duke.edu 
-##---------------------------------------------------------------------
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Oct 13 14:17:38 2020
+
+@author: tns24
+"""
 
 # Import modules
 import sys, os, arcpy
-
-#Allow arcpy to overwrite outputs 
 arcpy.env.overwriteOutput = True
 
 # Set input variables (Hard-wired)
-#inputFile = 'V:\\ARGOSTracking\\Data\\ARGOSData\\1997dg.txt'
-inputFolder = "V:\\ARGOSTracking\\Data\\ARGOSdata"
-outputFC = "V:/ARGOSTracking/Scratch/ARGOStrack.shp"
+inputFolder = '../Data/ARGOSData'
+inputFiles = os.listdir(inputFolder)
+outputFC = '../Scratch/ARGOStrack.shp'
 outputSR = arcpy.SpatialReference(54002)
 
-#Create an empty feautre class to which we will add features
-outPath, outName = os.path.split(outputFC) #splits output path and output file name
-arcpy.CreateFeatureclass_management(outPath, outName, "POINT", '','', '', outputSR)
+## Prepare a new feature class to which we'll add tracking points
+# Create an empty feature class; requires the path and name as separate parameters
+outPath,outName = os.path.split(outputFC)
+arcpy.CreateFeatureclass_management(outPath,outName,"POINT","","","",outputSR)
 
 # Add TagID, LC, IQ, and Date fields to the output feature class
 arcpy.AddField_management(outputFC,"TagID","LONG")
 arcpy.AddField_management(outputFC,"LC","TEXT")
-arcpy.AddField_management(outputFC,"Date","TEXT")
+arcpy.AddField_management(outputFC,"Date","DATE")
 
-#Create an insert cursor 
-cur = arcpy.da.InsertCursor(outputFC, ['Shape@', 'TagID', 'LC', 'Date'])
+# Create the insert cursor
+cur = arcpy.da.InsertCursor(outputFC,['Shape@','TagID','LC','Date'])
 
-#Iterate through each ARGOS file in the user supplied folder
-inputFiles = os.listdir(inputFolder) 
+#Loop through each file in the ARGOS folder
 for inputFile in inputFiles:
-    #Dont't process README.txt file 
-    if inputFile == 'README.txt':
-        continue
+    #Give some status
+    print("Processing {}".format(inputFile))
     
-    #Add fill path to input file name 
-    inputFile_full = os.path.join(inputFolder, inputFile)
-    print(f"Processing {inputFile}")
-    
+    #Skip the README.txt file
+    if inputFile == 'README.txt': continue
+
+    #Append the path to the file
+    inputFile = os.path.join(inputFolder,inputFile)
+
+    ## Construct a while loop to iterate through all lines in the datafile
     # Open the ARGOS data file for reading
-    inputFileObj = open(inputFile_full,'r')
-    
+    inputFileObj = open(inputFile,'r')
+
     # Get the first line of data, so we can use a while loop
     lineString = inputFileObj.readline()
     while lineString:
@@ -73,10 +68,13 @@ for inputFile in inputFiles:
             # Extract the date we need to variables
             obsLat = line2Data[2]
             obsLon= line2Data[5]
-    
+
+            # Print results to see how we're doing
+            #print (tagID,obsDate,obsTime,obsLC,"Lat:"+obsLat,"Long:"+obsLon)
+
             #Try to convert the coordinates to numbers
             try:
-    
+
                 # Convert raw coordinate strings to numbers
                 if obsLat[-1] == 'N':
                     obsLat = float(obsLat[:-1])
@@ -87,28 +85,28 @@ for inputFile in inputFiles:
                 else:
                     obsLon = float(obsLon[:-1] * -1)
                    
-                # Construct a raw point object from the feature class
+                # Construct a point object from the feature class
                 obsPoint = arcpy.Point()
                 obsPoint.X = obsLon
                 obsPoint.Y = obsLat
-    
+                
+                # Convert the point to a point geometry object with spatial reference
+                inputSR = arcpy.SpatialReference(4326)
+                obsPointGeom = arcpy.PointGeometry(obsPoint,inputSR)
+
+                # Create a feature object
+                cur.insertRow((obsPointGeom,tagID,obsLC,obsDate.replace(".","/") + " " + obsTime))
+
             #Handle any error
             except Exception as e:
                 pass
-                #print("Error adding record {} to the output".format(tagID))
-            
-            # Convert the point to a point geometry object with spatial reference
-            inputSR = arcpy.SpatialReference(4326)
-            obsPointGeom = arcpy.PointGeometry(obsPoint,inputSR)
-            
-            #Add a feature using our insert cursor
-            feature = cur.insertRow((obsPointGeom,tagID,obsLC,obsDate.replace(".","/") + " " + obsTime))
-            
+                #print("  Error adding record {} to the output".format(tagID))
+
         # Move to the next line so the while loop progresses
         lineString = inputFileObj.readline()
         
     #Close the file object
     inputFileObj.close()
 
-#Delete the cursor
+#Delete the cursor object
 del cur
